@@ -32,6 +32,14 @@ public class ClassRunner extends AbstractRunner {
         if (Config.enableMultithreading == true) {
             methodJob();
         } else {
+            // 当前针对类的测试生成使用的是多次调用method
+            // 想办法将其进行合并
+            // class 中的method直接合并即可，如果是需要对
+            // 难点是如何针对都有的方法进行合并
+            // 同名的应如何处理
+            // 比较稳妥的方式是创建一个副本
+            // 所有同名的变量和函数都创建一个副本
+            // 比较特殊的函数需要合并，比如setup，对其中所有的变量都进行一次拷贝
             for (String mSig : classInfo.methodSignatures.keySet()) {
                 MethodInfo methodInfo = getMethodInfo(classInfo, mSig);
                 if (methodInfo == null) {

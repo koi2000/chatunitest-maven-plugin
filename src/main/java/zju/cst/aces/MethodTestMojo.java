@@ -35,10 +35,11 @@ import java.nio.file.Paths;
  * @author chenyi
  * ChatUniTest maven plugin
  */
-
+// 针对method生成单元测试
 @Mojo(name = "method")
 public class MethodTestMojo
         extends ProjectTestMojo {
+    // 所需要的参数
     @Parameter(property = "selectMethod", required = true)
     public String selectMethod;
 
@@ -47,10 +48,13 @@ public class MethodTestMojo
      * @throws MojoExecutionException
      */
     public void execute() throws MojoExecutionException {
+        // 从配置中读取参数
         init();
+        // 获取类名
         String className = selectMethod.split("#")[0];
+        // 获取方法名
         String methodName = selectMethod.split("#")[1];
-
+        // 获取项目路径
         Path srcMainJavaPath = Paths.get(project.getBasedir().getAbsolutePath(), "src", "main", "java");
         if (!srcMainJavaPath.toFile().exists()) {
             log.error("\n==========================\n[ChatTester] No compile source found in " + project);

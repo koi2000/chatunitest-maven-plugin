@@ -46,6 +46,7 @@ public class ClassTestMojo
     public void execute() throws MojoExecutionException {
         init();
         String className = selectClass;
+        // 获取项目目录
         Path srcMainJavaPath = Paths.get(project.getBasedir().getAbsolutePath(), "src", "main", "java");
         if (!srcMainJavaPath.toFile().exists()) {
             log.error("\n==========================\n[ChatTester] No compile source found in " + project);

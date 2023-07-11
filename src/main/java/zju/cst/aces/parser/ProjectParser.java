@@ -34,15 +34,20 @@ public class ProjectParser {
      */
     public void parse() {
         List<String> classPaths = new ArrayList<>();
+        // 拿到所有的类名
         scanSourceDirectory(new File(srcFolderPath), classPaths);
         if (classPaths.isEmpty()) {
             throw new RuntimeException("No java file found in " + srcFolderPath);
         }
         for (String classPath : classPaths) {
             try {
+                // 构造一个类名到全路径的映射
                 addClassMap(classPath);
+                // 拿到包名
                 String packagePath = classPath.substring(srcFolderPath.length() + 1);
+                //
                 Path output = Paths.get(outputPath, packagePath).getParent();
+                //
                 ClassParser classParser = new ClassParser(output);
                 classParser.extractClass(classPath);
             } catch (Exception e) {
