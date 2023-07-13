@@ -19,7 +19,7 @@ public class TestCompiler extends ProjectTestMojo {
     public static File srcTestFolder = new File("src" + File.separator + "test" + File.separator + "java");
     public static File backupFolder = new File("src" + File.separator + "backup");
 
-    public boolean tryCompileAndExport(File file, Path outputPath, PromptInfo promptInfo){
+    public boolean tryCompileAndExport(File file, Path outputPath, PromptInfo promptInfo) {
         File testFile = null;
         Config.lock.lock();
         try {
@@ -46,7 +46,8 @@ public class TestCompiler extends ProjectTestMojo {
             // 设置编译输出目的地
             Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(sourceFile);
 
-            Iterable<String> options = outputPath.toString().isEmpty() ? null : Arrays.asList("-d", outputPath.toString());
+            // 设置编译选项
+            Iterable<String> options = Arrays.asList("-classpath", System.getProperty("java.class.path"));
 
             // 创建编译任务
             JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, options, null, compilationUnits);
@@ -54,7 +55,7 @@ public class TestCompiler extends ProjectTestMojo {
             // 执行编译任务
             boolean success = task.call();
             if (success) return true;
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException("In TestCompiler.compileAndExport: " + e);
         } finally {
             Config.lock.unlock();
@@ -98,6 +99,7 @@ public class TestCompiler extends ProjectTestMojo {
             String testFileName = testFile.getName().split("\\.")[0];
             ProcessBuilder processBuilder = new ProcessBuilder();
             String mvn = Config.OS.contains("win") ? "mvn.cmd" : "mvn";
+//            String mvn = "mvn";
             processBuilder.command(Arrays.asList(mvn, "test", "-Dtest=" + getPackage(testFile) + testFileName));
 
             log.debug("Running command: `"
@@ -108,7 +110,6 @@ public class TestCompiler extends ProjectTestMojo {
 
             Process process = processBuilder.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
 
             String line;
 //            while ((line = reader.readLine()) != null) {
