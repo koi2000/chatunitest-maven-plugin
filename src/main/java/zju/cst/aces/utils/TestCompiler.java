@@ -4,9 +4,12 @@ import org.codehaus.plexus.util.FileUtils;
 import zju.cst.aces.ProjectTestMojo;
 import zju.cst.aces.runner.MethodRunner;
 
+import javax.tools.*;
 import java.io.*;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +18,64 @@ import java.util.List;
 public class TestCompiler extends ProjectTestMojo {
     public static File srcTestFolder = new File("src" + File.separator + "test" + File.separator + "java");
     public static File backupFolder = new File("src" + File.separator + "backup");
+
+    public boolean tryCompileAndExport(File file, Path outputPath, PromptInfo promptInfo){
+        File testFile = null;
+        Config.lock.lock();
+        try {
+            testFile = copyFileToTest(file);
+            log.debug("Running test " + testFile.getName() + "...");
+            if (!testFile.exists()) {
+                log.error("Test file < " + testFile.getName() + " > not exists");
+                return false; // next round
+            }
+            if (!outputPath.toAbsolutePath().getParent().toFile().exists()) {
+                outputPath.toAbsolutePath().getParent().toFile().mkdirs();
+            }
+            // 读取.java文件的内容
+            String sourceCode = new String(Files.readAllBytes(testFile.toPath()));
+            // 获取Java编译器实例
+            JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+
+            // 获取标准文件管理器实例
+            StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+
+            // 创建内存中的Java源文件
+            JavaFileObject sourceFile = new JavaSourceFromString(testFile.getName(), sourceCode);
+
+            // 设置编译输出目的地
+            Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(sourceFile);
+
+            Iterable<String> options = outputPath.toString().isEmpty() ? null : Arrays.asList("-d", outputPath.toString());
+
+            // 创建编译任务
+            JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, null, options, null, compilationUnits);
+
+            // 执行编译任务
+            boolean success = task.call();
+            if (success) return true;
+        }catch (Exception e) {
+            throw new RuntimeException("In TestCompiler.compileAndExport: " + e);
+        } finally {
+            Config.lock.unlock();
+        }
+        return false;
+    }
+
+    // 自定义JavaFileObject实现，表示内存中的Java源文件
+    private class JavaSourceFromString extends SimpleJavaFileObject {
+        private final String code;
+
+        public JavaSourceFromString(String name, String code) {
+            super(URI.create("string:///" + name.replace('.', '/') + Kind.SOURCE.extension), Kind.SOURCE);
+            this.code = code;
+        }
+
+        @Override
+        public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+            return code;
+        }
+    }
 
     public boolean compileAndExport(File file, Path outputPath, PromptInfo promptInfo) {
 //        log.info("Waiting for lock: " + file.getName() + "...");
@@ -47,6 +108,7 @@ public class TestCompiler extends ProjectTestMojo {
 
             Process process = processBuilder.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
 
             String line;
 //            while ((line = reader.readLine()) != null) {

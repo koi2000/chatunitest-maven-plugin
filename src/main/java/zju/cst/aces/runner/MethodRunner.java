@@ -104,7 +104,7 @@ public class MethodRunner extends ClassRunner {
             exportTest(code, savePath);
 
             TestCompiler compiler = new TestCompiler();
-            if (compiler.compileAndExport(savePath.toFile(),
+            if (compiler.tryCompileAndExport(savePath.toFile(),
                     errorOutputPath.resolve(testName + "CompilationError_" + rounds + ".txt"), promptInfo)) {
                 paths.add(savePath);
                 log.info("Test for method < " + methodInfo.methodName + " > generated successfully");

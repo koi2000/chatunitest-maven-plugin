@@ -182,7 +182,7 @@ public class ClassRunner extends AbstractRunner {
         exportTest(code, savePath);
 
         TestCompiler compiler = new TestCompiler();
-        if (compiler.compileAndExport(savePath.toFile(),
+        if (compiler.tryCompileAndExport(savePath.toFile(),
                 errorOutputPath.resolve(testName + "CompilationError_" + ".txt"), new PromptInfo())) {
 
             log.info("Test for class < " + className + " > generated successfully");
