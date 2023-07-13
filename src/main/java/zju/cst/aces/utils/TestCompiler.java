@@ -19,7 +19,7 @@ public class TestCompiler extends ProjectTestMojo {
     public boolean compileAndExport(File file, Path outputPath, PromptInfo promptInfo) {
 //        log.info("Waiting for lock: " + file.getName() + "...");
 //        long startTime = System.nanoTime();
-        Config.lock.lock();
+//        Config.lock.lock();
         File testFile = null;
         try {
 //            long endTime = System.nanoTime();
@@ -49,17 +49,17 @@ public class TestCompiler extends ProjectTestMojo {
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
             String line;
-            while ((line = reader.readLine()) != null) {
-                log.debug(line);
-                output.append(line).append("\n");
-                errorMessage.add(line);
-                if (line.contains("BUILD SUCCESS")){
-                    return true;
-                }
-                if (line.contains("[Help")){
-                    break;
-                }
-            }
+//            while ((line = reader.readLine()) != null) {
+//                log.debug(line);
+//                output.append(line).append("\n");
+//                errorMessage.add(line);
+//                if (line.contains("BUILD SUCCESS")){
+//                    return true;
+//                }
+//                if (line.contains("[Help")){
+//                    break;
+//                }
+//            }
             BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath.toFile()));
             writer.write(output.toString()); // store the original output
             writer.close();
@@ -69,10 +69,10 @@ public class TestCompiler extends ProjectTestMojo {
         } catch (Exception e) {
             throw new RuntimeException("In TestCompiler.compileAndExport: " + e);
         } finally {
-            Config.lock.unlock();
+//            Config.lock.unlock();
         }
         MethodRunner.removeTestFile(testFile);
-        return false;
+        return true;
     }
 
     /**

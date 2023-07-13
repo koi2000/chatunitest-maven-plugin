@@ -41,6 +41,7 @@ public class ClassTestMojo
 
     /**
      * Generate tests for target class
+     *
      * @throws MojoExecutionException
      */
     public void execute() throws MojoExecutionException {
@@ -54,7 +55,7 @@ public class ClassTestMojo
         }
 
         ProjectParser parser = new ProjectParser(srcMainJavaPath.toString(), parseOutput);
-        if (! (new File(parseOutput).exists())) {
+        if (!(new File(parseOutput).exists())) {
             log.info("\n==========================\n[ChatTester] Parsing class info ...");
             parser.parse();
             log.info("\n==========================\n[ChatTester] Parse finished");
@@ -63,7 +64,9 @@ public class ClassTestMojo
         log.info("\n==========================\n[ChatTester] Generating tests for class < " + className + " > ...");
         TestCompiler.backupTestFolder();
         try {
-            new ClassRunner(getFullClassName(className), parseOutput, testOutput).start();
+            new ClassRunner(getFullClassName(className),
+                    parseOutput, testOutput, srcMainJavaPath.toString(), parseOutput, parser.getClassPath(className))
+                    .start();
         } catch (IOException e) {
             throw new RuntimeException("In ClassTestMojo.execute: " + e);
         }

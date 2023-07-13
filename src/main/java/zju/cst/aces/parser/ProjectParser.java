@@ -22,11 +22,26 @@ public class ProjectParser {
     private String srcFolderPath;
     private String outputPath;
     public Map<String, List<String>> classMap = new HashMap<>();
+    public Map<String, String> classPathMap = new HashMap<>();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     public ProjectParser(String src, String output) {
         setSrcFolderPath(src);
         setOutputPath(output);
+    }
+
+    public String getClassPath(String className){
+        List<String> classPaths = new ArrayList<>();
+        // 拿到所有的类名
+        scanSourceDirectory(new File(srcFolderPath), classPaths);
+        if (classPaths.isEmpty()) {
+            throw new RuntimeException("No java file found in " + srcFolderPath);
+        }
+        for (String classPath : classPaths) {
+                // 构造一个类名到全路径的映射
+                addClassMap(classPath);
+        }
+        return classPathMap.get(className);
     }
 
     /**
@@ -70,6 +85,7 @@ public class ProjectParser {
             fullClassNames.add(fullClassName);
             classMap.put(className, fullClassNames);
         }
+        classPathMap.put(className,classPath);
     }
 
     public void exportClassMap() {

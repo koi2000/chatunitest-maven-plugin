@@ -16,12 +16,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 
 public class ClassRunner extends AbstractRunner {
     public ClassInfo classInfo;
     public File infoDir;
+    public ClassParser classParser;
 
     public ClassRunner(String fullClassName, String parsePath, String testPath) throws IOException {
         super(fullClassName, parsePath, testPath);
@@ -31,6 +33,21 @@ public class ClassRunner extends AbstractRunner {
         }
         File classInfoFile = new File(infoDir + File.separator + "class.json");
         classInfo = GSON.fromJson(Files.readString(classInfoFile.toPath(), StandardCharsets.UTF_8), ClassInfo.class);
+    }
+
+    public ClassRunner(String fullClassName, String parsePath, String testPath, String srcFolderPath, String outputPath, String classPath) throws IOException {
+        super(fullClassName, parsePath, testPath);
+        infoDir = new File(parseOutputPath + File.separator + fullClassName.replace(".", File.separator));
+        if (!infoDir.isDirectory()) {
+            log.error("Error: " + fullClassName + " no parsed info found");
+        }
+        File classInfoFile = new File(infoDir + File.separator + "class.json");
+        classInfo = GSON.fromJson(Files.readString(classInfoFile.toPath(), StandardCharsets.UTF_8), ClassInfo.class);
+
+        String packagePath = classPath.substring(srcFolderPath.length() + 1);
+        Path output = Paths.get(outputPath, packagePath).getParent();
+
+        classParser = new ClassParser(output);
     }
 
     public void start() throws IOException {
@@ -51,7 +68,9 @@ public class ClassRunner extends AbstractRunner {
                 if (methodInfo == null) {
                     continue;
                 }
-                 new MethodRunner(fullClassName, parseOutputPath.toString(), testOutputPath.toString(), methodInfo).run(paths);
+                new MethodRunner(fullClassName, parseOutputPath.toString(),
+                        testOutputPath.toString(), methodInfo)
+                        .run(paths);
             }
             String code = mergeClassAndGenerate(paths);
             saveFile(code);
