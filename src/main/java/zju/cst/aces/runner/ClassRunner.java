@@ -4,8 +4,10 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import zju.cst.aces.parser.ClassParser;
@@ -72,6 +74,7 @@ public class ClassRunner extends AbstractRunner {
                         testOutputPath.toString(), methodInfo)
                         .run(paths);
             }
+
             String code = mergeClassAndGenerate(paths);
             saveFile(code);
         }
@@ -86,7 +89,7 @@ public class ClassRunner extends AbstractRunner {
         // 获取所有的import
         Set<ImportDeclaration> importSet = new HashSet<>();
         // 获取所有的field
-        HashSet<FieldDeclaration> fieldSet = new HashSet<>();
+        HashMap<String,FieldDeclaration> fieldMap = new HashMap<>();
         for (Path path : classPath) {
             ParseResult<CompilationUnit> parseResult = parser.parse(path);
             CompilationUnit cu = parseResult.getResult().orElseThrow();
@@ -100,7 +103,26 @@ public class ClassRunner extends AbstractRunner {
             for (ClassOrInterfaceDeclaration classDeclaration : classes) {
                 // 获取所有的field
                 List<FieldDeclaration> fields = classDeclaration.getFields();
-                fieldSet.addAll(fields);
+                String fieldName = new String();
+                for (FieldDeclaration field : fields) {
+                    // 获取字段名
+                    for (VariableDeclarator variable : field.getVariables()) {
+                        fieldName = variable.getName().asString();
+                    }
+                    if (fieldMap.containsKey(fieldName)){
+                        FieldDeclaration origin = fieldMap.get(fieldName);
+                        NodeList<AnnotationExpr> annotations1 = origin.getAnnotations();
+                        NodeList<AnnotationExpr> annotations2 = field.getAnnotations();
+                        Set<AnnotationExpr> st = new HashSet<>();
+                        st.addAll(annotations1);
+                        st.addAll(annotations2);
+                        origin.setAnnotations(new NodeList<>(st));
+                        fieldMap.put(fieldName,origin);
+                    }else{
+                        fieldMap.put(fieldName,field);
+                    }
+                }
+
                 // 获取所有的method
                 extractMethods(methodSigMap, cu, classDeclaration);
             }
@@ -109,9 +131,9 @@ public class ClassRunner extends AbstractRunner {
         for (ImportDeclaration importDeclaration : importSet) {
             res.addImport(importDeclaration);
         }
-
-        ClassOrInterfaceDeclaration test = res.addClass("Test");
-        for (FieldDeclaration fieldDeclaration : fieldSet) {
+        String testName = className + separator + "Test";
+        ClassOrInterfaceDeclaration test = res.addClass(testName);
+        for (FieldDeclaration fieldDeclaration : fieldMap.values()) {
             test.getMembers().add(fieldDeclaration);
         }
         for (MethodDeclaration methodDeclaration : methodSigMap.values()) {
