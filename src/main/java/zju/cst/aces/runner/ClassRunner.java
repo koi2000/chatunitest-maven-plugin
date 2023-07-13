@@ -1,10 +1,15 @@
 package zju.cst.aces.runner;
 
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParseResult;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import zju.cst.aces.parser.ClassParser;
-import zju.cst.aces.utils.ClassInfo;
-import zju.cst.aces.utils.Config;
-import zju.cst.aces.utils.MethodInfo;
-import zju.cst.aces.utils.PromptInfo;
+import zju.cst.aces.utils.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,14 +45,112 @@ public class ClassRunner extends AbstractRunner {
             // 比较稳妥的方式是创建一个副本
             // 所有同名的变量和函数都创建一个副本
             // 比较特殊的函数需要合并，比如setup，对其中所有的变量都进行一次拷贝
+            List<Path> paths = new ArrayList<>();
             for (String mSig : classInfo.methodSignatures.keySet()) {
                 MethodInfo methodInfo = getMethodInfo(classInfo, mSig);
                 if (methodInfo == null) {
                     continue;
                 }
-                new MethodRunner(fullClassName, parseOutputPath.toString(), testOutputPath.toString(), methodInfo).start();
+                 new MethodRunner(fullClassName, parseOutputPath.toString(), testOutputPath.toString(), methodInfo).run(paths);
+            }
+            String code = mergeClassAndGenerate(paths);
+            saveFile(code);
+        }
+    }
+
+    private String mergeClassAndGenerate(List<Path> classPath) throws IOException {
+        JavaParser parser = ClassParser.parser;
+        // 得到一个sig到MethodDeclaration的映射
+        HashMap<String, MethodDeclaration> methodSigMap = new HashMap<>();
+        // 开始准备生成
+        CompilationUnit res = new CompilationUnit();
+        // 获取所有的import
+        Set<ImportDeclaration> importSet = new HashSet<>();
+        // 获取所有的field
+        HashSet<FieldDeclaration> fieldSet = new HashSet<>();
+        for (Path path : classPath) {
+            ParseResult<CompilationUnit> parseResult = parser.parse(path);
+            CompilationUnit cu = parseResult.getResult().orElseThrow();
+            // 获取PackageDeclaration
+            // 直接从Optional中取值，可能会存在问题
+            res.setPackageDeclaration(cu.getPackageDeclaration().get());
+            List<ClassOrInterfaceDeclaration> classes = cu.findAll(ClassOrInterfaceDeclaration.class);
+            // 获取所有的import
+            NodeList<ImportDeclaration> imports = cu.getImports();
+            importSet.addAll(imports);
+            for (ClassOrInterfaceDeclaration classDeclaration : classes) {
+                // 获取所有的field
+                List<FieldDeclaration> fields = classDeclaration.getFields();
+                fieldSet.addAll(fields);
+                // 获取所有的method
+                extractMethods(methodSigMap, cu, classDeclaration);
             }
         }
+        // 放入import
+        for (ImportDeclaration importDeclaration : importSet) {
+            res.addImport(importDeclaration);
+        }
+
+        ClassOrInterfaceDeclaration test = res.addClass("Test");
+        for (FieldDeclaration fieldDeclaration : fieldSet) {
+            test.getMembers().add(fieldDeclaration);
+        }
+        for (MethodDeclaration methodDeclaration : methodSigMap.values()) {
+            test.getMembers().add(methodDeclaration);
+        }
+        // System.out.println(res.toString());
+        return res.toString();
+    }
+
+    private void extractMethods(Map<String, MethodDeclaration> methodSigMap, CompilationUnit cu, ClassOrInterfaceDeclaration classDeclaration) throws IOException {
+        List<MethodDeclaration> methods = classDeclaration.getMethods();
+        for (MethodDeclaration m : methods) {
+            String sig = getMethodSig(m);
+            if (methodSigMap.containsKey(sig)) {
+                MethodDeclaration methodDeclaration = methodSigMap.get(sig);
+                NodeList<Statement> statements = new NodeList<>();
+                methodDeclaration.getBody().ifPresent(body -> {
+                    statements.addAll(body.getStatements());
+                });
+                m.getBody().ifPresent(body -> {
+                    statements.addAll(body.getStatements());
+                });
+                methodDeclaration.setBody(new BlockStmt(statements));
+            } else {
+                methodSigMap.put(sig, m);
+            }
+        }
+    }
+
+    private String getMethodSig(CallableDeclaration node) {
+        if (node instanceof MethodDeclaration) {
+            return ((MethodDeclaration) node).resolve().getSignature();
+        } else {
+            return ((ConstructorDeclaration) node).resolve().getSignature();
+        }
+    }
+
+    public boolean saveFile(String code) throws IOException {
+        String testName = className + separator + "Test";
+        Path savePath = testOutputPath.resolve(classInfo.packageDeclaration
+                        .replace(".", File.separator)
+                        .replace("package ", "")
+                        .replace(";", ""))
+                .resolve(testName + ".java");
+
+        exportTest(code, savePath);
+
+        TestCompiler compiler = new TestCompiler();
+        if (compiler.compileAndExport(savePath.toFile(),
+                errorOutputPath.resolve(testName + "CompilationError_" + ".txt"), new PromptInfo())) {
+
+            log.info("Test for class < " + className + " > generated successfully");
+            return true;
+        } else {
+            MethodRunner.removeTestFile(savePath.toFile());
+            log.info("Test for class < " + className + " > generated failed");
+        }
+        return false;
     }
 
     public void methodJob() {

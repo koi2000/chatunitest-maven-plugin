@@ -6,8 +6,7 @@ import zju.cst.aces.utils.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class MethodRunner extends ClassRunner {
@@ -19,8 +18,8 @@ public class MethodRunner extends ClassRunner {
         this.methodInfo = methodInfo;
     }
 
-    @Override
-    public void start() throws IOException {
+
+    public void run(List<Path> paths) throws IOException {
         if (Config.stopWhenSuccess == false && Config.enableMultithreading == true) {
             ExecutorService executor = Executors.newFixedThreadPool(Config.testNumber);
             List<Future<String>> futures = new ArrayList<>();
@@ -29,7 +28,7 @@ public class MethodRunner extends ClassRunner {
                 Callable<String> callable = new Callable<String>() {
                     @Override
                     public String call() throws Exception {
-                        startRounds(finalNum);
+                        startRounds(finalNum, paths);
                         return "";
                     }
                 };
@@ -53,15 +52,16 @@ public class MethodRunner extends ClassRunner {
 
             executor.shutdown();
         } else {
+            // 单线程执行部分
             for (int num = 1; num <= Config.testNumber; num++) {
-                if (startRounds(num)) {
+                if (startRounds(num, paths)) {
                     break;
                 }
             }
         }
     }
 
-    public boolean startRounds(final int num) throws IOException {
+    public boolean startRounds(final int num, List<Path> paths) throws IOException {
         PromptInfo promptInfo = null;
         String testName = className + separator + methodInfo.methodName + separator
                 + classInfo.methodSignatures.get(methodInfo.methodSignature) + separator + num + separator + "Test";
@@ -106,6 +106,7 @@ public class MethodRunner extends ClassRunner {
             TestCompiler compiler = new TestCompiler();
             if (compiler.compileAndExport(savePath.toFile(),
                     errorOutputPath.resolve(testName + "CompilationError_" + rounds + ".txt"), promptInfo)) {
+                paths.add(savePath);
                 log.info("Test for method < " + methodInfo.methodName + " > generated successfully");
                 return true;
             } else {

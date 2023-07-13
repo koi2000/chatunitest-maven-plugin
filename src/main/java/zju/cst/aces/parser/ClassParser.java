@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ClassParser {
-    private static final JavaParser parser = new JavaParser();
+    public static final JavaParser parser = new JavaParser();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final String separator = "_";
     private static Path outputPath = null;

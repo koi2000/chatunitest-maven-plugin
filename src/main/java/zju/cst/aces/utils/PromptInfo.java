@@ -19,6 +19,9 @@ public class PromptInfo {
     public List<String> errorMsg = null;
     public String unitTest = "";
 
+    public PromptInfo() {
+    }
+
     public PromptInfo(boolean hasDep, String className, String methodName,
                       String methodSignature, String methodCode) {
         this.hasDep = hasDep;
